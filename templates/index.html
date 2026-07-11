@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ClipGrab</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}" />
+</head>
+<body>
+  <main class="wrap">
+    <h1>ClipGrab</h1>
+    <p class="tagline">Paste a YouTube, TikTok, or Instagram Reels link.</p>
+
+    <form id="form">
+      <input id="url" type="url" placeholder="https://..." required autocomplete="off" />
+      <button type="submit" id="go">Fetch</button>
+    </form>
+
+    <div id="error" class="error hidden"></div>
+
+    <section id="preview" class="preview hidden">
+      <img id="thumb" src="" alt="" />
+      <div class="meta">
+        <h2 id="title"></h2>
+        <p id="sub"></p>
+        <div class="actions">
+          <button id="dl-video">Video (MP4)</button>
+          <button id="dl-audio">Audio (MP3)</button>
+        </div>
+      </div>
+    </section>
+
+    <section class="history">
+      <h3>Recent</h3>
+      <ul id="history-list"></ul>
+    </section>
+
+    <footer>
+      For personal use with content you own or have permission to use. Not for redistribution.
+    </footer>
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
