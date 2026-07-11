@@ -106,14 +106,28 @@ button:disabled {
   margin: 0 0 4px;
 }
 
-.preview .actions {
+.preview .qualities {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   margin-top: 14px;
 }
 
-.preview .actions button {
-  flex: 1;
+.preview .qualities button {
+  flex: 1 1 calc(50% - 8px);
+  background: #22242a;
+  font-size: 14px;
+  padding: 12px 10px;
+}
+
+.preview .qualities button:active {
+  background: var(--accent);
+}
+
+.audio-btn {
+  width: 100%;
+  margin-top: 8px;
+  background: #22242a;
 }
 
 .history {
