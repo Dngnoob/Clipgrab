@@ -15,12 +15,51 @@ SUPPORTED_PATTERNS = {
     "instagram": re.compile(r"instagram\.com", re.I),
 }
 
+COOKIE_FILE = "/etc/secrets/cookies.txt"
+
 
 def detect_platform(url: str):
     for name, pattern in SUPPORTED_PATTERNS.items():
         if pattern.search(url):
             return name
     return None
+
+
+def base_opts():
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "socket_timeout": 20,
+        "retries": 3,
+    }
+    if os.path.exists(COOKIE_FILE):
+        opts["cookiefile"] = COOKIE_FILE
+    return opts
+
+
+def build_quality_options(formats):
+    """Collapse yt-dlp's raw format list into one best entry per resolution."""
+    best_by_height = {}
+    for f in formats:
+        height = f.get("height")
+        vcodec = f.get("vcodec")
+        if not height or vcodec in (None, "none"):
+            continue
+        tbr = f.get("tbr") or 0
+        existing = best_by_height.get(height)
+        if existing is None or tbr > existing["_tbr"]:
+            best_by_height[height] = {
+                "height": height,
+                "format_id": f.get("format_id"),
+                "ext": f.get("ext"),
+                "filesize": f.get("filesize") or f.get("filesize_approx"),
+                "_tbr": tbr,
+            }
+
+    options = sorted(best_by_height.values(), key=lambda x: x["height"], reverse=True)[:6]
+    for o in options:
+        o.pop("_tbr", None)
+    return options
 
 
 @app.route("/")
@@ -40,7 +79,7 @@ def extract():
     if not platform:
         return jsonify({"error": "That doesn't look like a YouTube, TikTok, or Instagram link."}), 400
 
-    ydl_opts = {"quiet": True, "no_warnings": True, "skip_download": True}
+    ydl_opts = {**base_opts(), "skip_download": True}
     try:
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -54,6 +93,7 @@ def extract():
             "thumbnail": info.get("thumbnail"),
             "duration": info.get("duration"),
             "uploader": info.get("uploader"),
+            "qualities": build_quality_options(info.get("formats") or []),
         }
     )
 
@@ -62,6 +102,7 @@ def extract():
 def download():
     url = (request.args.get("url") or "").strip()
     mode = request.args.get("mode", "video")
+    format_id = (request.args.get("format_id") or "").strip()
 
     if not url or not detect_platform(url):
         return jsonify({"error": "Missing or unsupported link."}), 400
@@ -71,8 +112,7 @@ def download():
 
     if mode == "audio":
         ydl_opts = {
-            "quiet": True,
-            "no_warnings": True,
+            **base_opts(),
             "format": "bestaudio/best",
             "outtmpl": outtmpl,
             "postprocessors": [
@@ -80,10 +120,15 @@ def download():
             ],
         }
     else:
+        if format_id:
+            # Try muxing the chosen resolution with best audio; if that specific
+            # format already has audio or can't be merged, fall back gracefully.
+            fmt = f"{format_id}+bestaudio/{format_id}/best"
+        else:
+            fmt = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"
         ydl_opts = {
-            "quiet": True,
-            "no_warnings": True,
-            "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
+            **base_opts(),
+            "format": fmt,
             "outtmpl": outtmpl,
             "merge_output_format": "mp4",
         }
