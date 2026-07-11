@@ -15,9 +15,6 @@ SUPPORTED_PATTERNS = {
     "instagram": re.compile(r"instagram\.com", re.I),
 }
 
-COOKIE_FILE = "/etc/secrets/cookies.txt"
-
-
 def detect_platform(url: str):
     for name, pattern in SUPPORTED_PATTERNS.items():
         if pattern.search(url):
@@ -31,13 +28,8 @@ def base_opts():
         "no_warnings": True,
         "socket_timeout": 20,
         "retries": 3,
+        "cookies_from_browser": "firefox",
     }
-    try:
-        with open(COOKIE_FILE, "r") as f:
-            f.read(1)
-        opts["cookiefile"] = COOKIE_FILE
-    except (FileNotFoundError, IOError):
-        pass
     return opts
 
 
