@@ -1,7 +1,9 @@
 FROM python:3.12-slim
 
-# ffmpeg is required by yt-dlp for merging video+audio and MP3 extraction
-RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg \
+# ffmpeg for video processing, Firefox for cookie extraction
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    firefox-esr \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -14,4 +16,4 @@ COPY . .
 ENV PORT=10000
 EXPOSE 10000
 
-CMD ["python", "app.py"]
+CMD gunicorn -w 2 --threads 4 --timeout 120 -b 0.0.0.0:$PORT app:app
