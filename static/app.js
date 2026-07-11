@@ -5,7 +5,7 @@ const preview = document.getElementById("preview");
 const thumb = document.getElementById("thumb");
 const titleEl = document.getElementById("title");
 const subEl = document.getElementById("sub");
-const dlVideoBtn = document.getElementById("dl-video");
+const qualitiesEl = document.getElementById("qualities");
 const dlAudioBtn = document.getElementById("dl-audio");
 const historyList = document.getElementById("history-list");
 const goBtn = document.getElementById("go");
@@ -21,6 +21,31 @@ function showError(msg) {
 
 function clearError() {
   errorBox.classList.add("hidden");
+}
+
+function formatSize(bytes) {
+  if (!bytes) return "";
+  const mb = bytes / (1024 * 1024);
+  return mb >= 1 ? ` · ${mb.toFixed(0)} MB` : ` · ${(bytes / 1024).toFixed(0)} KB`;
+}
+
+function renderQualities(qualities) {
+  qualitiesEl.innerHTML = "";
+
+  if (!qualities || qualities.length === 0) {
+    const btn = document.createElement("button");
+    btn.textContent = "Best available";
+    btn.addEventListener("click", () => triggerDownload("video", ""));
+    qualitiesEl.appendChild(btn);
+    return;
+  }
+
+  qualities.forEach((q) => {
+    const btn = document.createElement("button");
+    btn.textContent = `${q.height}p${formatSize(q.filesize)}`;
+    btn.addEventListener("click", () => triggerDownload("video", q.format_id));
+    qualitiesEl.appendChild(btn);
+  });
 }
 
 function renderHistory() {
@@ -62,6 +87,7 @@ form.addEventListener("submit", async (e) => {
     thumb.src = data.thumbnail || "";
     titleEl.textContent = data.title || "Untitled";
     subEl.textContent = [data.platform, data.uploader].filter(Boolean).join(" · ");
+    renderQualities(data.qualities);
     preview.classList.remove("hidden");
 
     history = [{ url, title: data.title }, ...history.filter((h) => h.url !== url)];
@@ -74,12 +100,13 @@ form.addEventListener("submit", async (e) => {
   }
 });
 
-function triggerDownload(mode) {
+function triggerDownload(mode, formatId) {
   if (!currentUrl) return;
+  let href = `/api/download?url=${encodeURIComponent(currentUrl)}&mode=${mode}`;
+  if (formatId) href += `&format_id=${encodeURIComponent(formatId)}`;
   const link = document.createElement("a");
-  link.href = `/api/download?url=${encodeURIComponent(currentUrl)}&mode=${mode}`;
+  link.href = href;
   link.click();
 }
 
-dlVideoBtn.addEventListener("click", () => triggerDownload("video"));
-dlAudioBtn.addEventListener("click", () => triggerDownload("audio"));
+dlAudioBtn.addEventListener("click", () => triggerDownload("audio", ""));
