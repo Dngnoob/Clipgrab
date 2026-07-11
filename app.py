@@ -32,8 +32,12 @@ def base_opts():
         "socket_timeout": 20,
         "retries": 3,
     }
-    if os.path.exists(COOKIE_FILE):
+    try:
+        with open(COOKIE_FILE, "r") as f:
+            f.read(1)
         opts["cookiefile"] = COOKIE_FILE
+    except (FileNotFoundError, IOError):
+        pass
     return opts
 
 
