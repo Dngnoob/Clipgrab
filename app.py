@@ -15,7 +15,8 @@ SUPPORTED_PATTERNS = {
     "instagram": re.compile(r"instagram\.com", re.I),
 }
 
-COOKIE_FILE = "/etc/secrets/cookies.txt"
+COOKIE_SOURCE = "/etc/secrets/cookies.txt"
+COOKIE_FILE = "/tmp/cookies.txt"
 
 
 def detect_platform(url: str):
@@ -23,6 +24,20 @@ def detect_platform(url: str):
         if pattern.search(url):
             return name
     return None
+
+
+def ensure_writable_cookiefile():
+    """yt-dlp writes session updates back to the cookiefile it's given.
+    Render's secret files are read-only, so copy to /tmp once and use that."""
+    if os.path.exists(COOKIE_FILE):
+        return True
+    if os.path.exists(COOKIE_SOURCE):
+        try:
+            shutil.copyfile(COOKIE_SOURCE, COOKIE_FILE)
+            return True
+        except IOError:
+            return False
+    return False
 
 
 def base_opts():
@@ -33,12 +48,8 @@ def base_opts():
         "retries": 3,
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     }
-    try:
-        with open(COOKIE_FILE, "r") as f:
-            f.read(1)
+    if ensure_writable_cookiefile():
         opts["cookiefile"] = COOKIE_FILE
-    except (FileNotFoundError, IOError):
-        pass
     return opts
 
 
