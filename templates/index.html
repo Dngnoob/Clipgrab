@@ -8,8 +8,21 @@
 </head>
 <body>
   <main class="wrap">
-    <h1>ClipGrab</h1>
-    <p class="tagline">Paste a YouTube, TikTok, or Instagram Reels link.</p>
+    <header class="top">
+      <div>
+        <h1>ClipGrab</h1>
+        <p class="tagline">Paste a TikTok or Instagram Reels link.</p>
+      </div>
+      <button id="theme-toggle" class="theme-toggle" aria-label="Toggle theme" type="button">
+        <svg id="icon-sun" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="4"/>
+          <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+        </svg>
+        <svg id="icon-moon" class="icon hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </header>
 
     <form id="form">
       <input id="url" type="url" placeholder="https://..." required autocomplete="off" />
@@ -23,6 +36,7 @@
       <div class="meta">
         <h2 id="title"></h2>
         <p id="sub"></p>
+        <p class="label">Quality</p>
         <div id="qualities" class="qualities"></div>
         <button id="dl-audio" class="audio-btn">Audio only (MP3)</button>
       </div>
