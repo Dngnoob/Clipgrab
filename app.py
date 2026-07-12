@@ -10,13 +10,9 @@ import yt_dlp
 app = Flask(__name__)
 
 SUPPORTED_PATTERNS = {
-    "youtube": re.compile(r"(youtube\.com|youtu\.be)", re.I),
     "tiktok": re.compile(r"tiktok\.com", re.I),
     "instagram": re.compile(r"instagram\.com", re.I),
 }
-
-COOKIE_SOURCE = "/etc/secrets/cookies.txt"
-COOKIE_FILE = "/tmp/cookies.txt"
 
 
 def detect_platform(url: str):
@@ -26,31 +22,14 @@ def detect_platform(url: str):
     return None
 
 
-def ensure_writable_cookiefile():
-    """yt-dlp writes session updates back to the cookiefile it's given.
-    Render's secret files are read-only, so copy to /tmp once and use that."""
-    if os.path.exists(COOKIE_FILE):
-        return True
-    if os.path.exists(COOKIE_SOURCE):
-        try:
-            shutil.copyfile(COOKIE_SOURCE, COOKIE_FILE)
-            return True
-        except IOError:
-            return False
-    return False
-
-
 def base_opts():
-    opts = {
+    return {
         "quiet": True,
         "no_warnings": True,
         "socket_timeout": 20,
         "retries": 3,
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     }
-    if ensure_writable_cookiefile():
-        opts["cookiefile"] = COOKIE_FILE
-    return opts
 
 
 def build_quality_options(formats):
@@ -93,7 +72,7 @@ def extract():
 
     platform = detect_platform(url)
     if not platform:
-        return jsonify({"error": "That doesn't look like a YouTube, TikTok, or Instagram link."}), 400
+        return jsonify({"error": "That doesn't look like a TikTok or Instagram link."}), 400
 
     ydl_opts = {**base_opts(), "skip_download": True}
     try:
