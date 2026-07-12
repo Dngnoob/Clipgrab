@@ -9,10 +9,46 @@ const qualitiesEl = document.getElementById("qualities");
 const dlAudioBtn = document.getElementById("dl-audio");
 const historyList = document.getElementById("history-list");
 const goBtn = document.getElementById("go");
+const themeToggle = document.getElementById("theme-toggle");
+const iconSun = document.getElementById("icon-sun");
+const iconMoon = document.getElementById("icon-moon");
 
 let currentUrl = "";
 let history = [];
 
+// --- Theme ---
+function applyTheme(theme) {
+  if (theme === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+    iconSun.classList.add("hidden");
+    iconMoon.classList.remove("hidden");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    iconSun.classList.remove("hidden");
+    iconMoon.classList.add("hidden");
+  }
+}
+
+function initTheme() {
+  const saved = localStorage.getItem("clipgrab-theme");
+  if (saved) {
+    applyTheme(saved);
+    return;
+  }
+  const prefersLight = window.matchMedia("(prefers-color-scheme: light)").matches;
+  applyTheme(prefersLight ? "light" : "dark");
+}
+
+themeToggle.addEventListener("click", () => {
+  const isLight = document.documentElement.getAttribute("data-theme") === "light";
+  const next = isLight ? "dark" : "light";
+  applyTheme(next);
+  localStorage.setItem("clipgrab-theme", next);
+});
+
+initTheme();
+
+// --- App logic ---
 function showError(msg) {
   errorBox.textContent = msg;
   errorBox.classList.remove("hidden");
