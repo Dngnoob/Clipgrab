@@ -50,6 +50,28 @@ def extract_image_url(info):
     return None
 
 
+def fetch_instagram_preview(url):
+    """yt-dlp refuses Instagram photo posts outright ('There is no video in
+    this post'). Fall back to the page's own Open Graph tags, the same data
+    that powers link previews in Messages/WhatsApp — no login needed for
+    public posts."""
+    try:
+        resp = requests.get(url, headers={"User-Agent": base_opts()["user_agent"]}, timeout=15)
+        resp.raise_for_status()
+    except Exception:
+        return None, None
+
+    html = resp.text
+
+    def og(prop):
+        m = re.search(rf'property="og:{prop}"\s+content="([^"]*)"', html)
+        if not m:
+            m = re.search(rf'content="([^"]*)"\s+property="og:{prop}"', html)
+        return m.group(1) if m else None
+
+    return og("image"), (og("title") or og("description"))
+
+
 def build_quality_options(formats):
     """Collapse yt-dlp's raw format list into one best entry per resolution."""
     best_by_height = {}
@@ -97,6 +119,20 @@ def extract():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False)
     except Exception as exc:
+        if platform == "instagram" and "no video" in str(exc).lower():
+            image_url, title = fetch_instagram_preview(url)
+            if image_url:
+                return jsonify(
+                    {
+                        "platform": platform,
+                        "title": title or "Instagram photo",
+                        "thumbnail": image_url,
+                        "duration": None,
+                        "uploader": None,
+                        "qualities": [],
+                        "is_image": True,
+                    }
+                )
         return jsonify({"error": f"Couldn't read that link ({exc})"}), 422
 
     formats = info.get("formats") or []
@@ -117,13 +153,19 @@ def extract():
 
 
 def _download_image(url):
+    image_url = None
     try:
         with yt_dlp.YoutubeDL({**base_opts(), "skip_download": True}) as ydl:
             info = ydl.extract_info(url, download=False)
+        image_url = extract_image_url(info)
     except Exception as exc:
-        return jsonify({"error": f"Couldn't read that link ({exc})"}), 422
+        if "no video" not in str(exc).lower():
+            return jsonify({"error": f"Couldn't read that link ({exc})"}), 422
+        # yt-dlp refuses photo posts outright — fall through to the scrape fallback below.
 
-    image_url = extract_image_url(info)
+    if not image_url:
+        image_url, _ = fetch_instagram_preview(url)
+
     if not image_url:
         return jsonify({"error": "No downloadable image found for this post."}), 422
 
