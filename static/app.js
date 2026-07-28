@@ -65,8 +65,19 @@ function formatSize(bytes) {
   return mb >= 1 ? ` · ${mb.toFixed(0)} MB` : ` · ${(bytes / 1024).toFixed(0)} KB`;
 }
 
-function renderQualities(qualities) {
+function renderQualities(qualities, isImage) {
   qualitiesEl.innerHTML = "";
+
+  if (isImage) {
+    const btn = document.createElement("button");
+    btn.textContent = "Download Image";
+    btn.addEventListener("click", () => triggerDownload("image", ""));
+    qualitiesEl.appendChild(btn);
+    dlAudioBtn.classList.add("hidden");
+    return;
+  }
+
+  dlAudioBtn.classList.remove("hidden");
 
   if (!qualities || qualities.length === 0) {
     const btn = document.createElement("button");
@@ -123,7 +134,7 @@ form.addEventListener("submit", async (e) => {
     thumb.src = data.thumbnail || "";
     titleEl.textContent = data.title || "Untitled";
     subEl.textContent = [data.platform, data.uploader].filter(Boolean).join(" · ");
-    renderQualities(data.qualities);
+    renderQualities(data.qualities, data.is_image);
     preview.classList.remove("hidden");
 
     history = [{ url, title: data.title }, ...history.filter((h) => h.url !== url)];
