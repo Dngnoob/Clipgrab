@@ -4,6 +4,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
+import requests
 from flask import Flask, request, jsonify, send_file, render_template, after_this_request
 import yt_dlp
 
@@ -30,6 +31,23 @@ def base_opts():
         "retries": 3,
         "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     }
+
+
+def has_video(formats):
+    return any((f.get("vcodec") not in (None, "none")) for f in (formats or []))
+
+
+def extract_image_url(info):
+    """Photo posts have no video formats. yt-dlp sometimes still exposes the
+    photo directly via 'url'/'ext', otherwise fall back to the largest thumbnail."""
+    ext = (info.get("ext") or "").lower()
+    if info.get("url") and ext in ("jpg", "jpeg", "png", "webp"):
+        return info["url"]
+    thumbnails = info.get("thumbnails") or []
+    if thumbnails:
+        best = max(thumbnails, key=lambda t: (t.get("width") or 0) * (t.get("height") or 0))
+        return best.get("url")
+    return None
 
 
 def build_quality_options(formats):
@@ -81,6 +99,10 @@ def extract():
     except Exception as exc:
         return jsonify({"error": f"Couldn't read that link ({exc})"}), 422
 
+    formats = info.get("formats") or []
+    is_video = has_video(formats)
+    is_image = not is_video and extract_image_url(info) is not None
+
     return jsonify(
         {
             "platform": platform,
@@ -88,9 +110,44 @@ def extract():
             "thumbnail": info.get("thumbnail"),
             "duration": info.get("duration"),
             "uploader": info.get("uploader"),
-            "qualities": build_quality_options(info.get("formats") or []),
+            "qualities": build_quality_options(formats),
+            "is_image": is_image,
         }
     )
+
+
+def _download_image(url):
+    try:
+        with yt_dlp.YoutubeDL({**base_opts(), "skip_download": True}) as ydl:
+            info = ydl.extract_info(url, download=False)
+    except Exception as exc:
+        return jsonify({"error": f"Couldn't read that link ({exc})"}), 422
+
+    image_url = extract_image_url(info)
+    if not image_url:
+        return jsonify({"error": "No downloadable image found for this post."}), 422
+
+    try:
+        resp = requests.get(image_url, timeout=20, stream=True)
+        resp.raise_for_status()
+    except Exception as exc:
+        return jsonify({"error": f"Image download failed ({exc})"}), 422
+
+    content_type = resp.headers.get("Content-Type", "")
+    ext = "png" if "png" in content_type else "webp" if "webp" in content_type else "jpg"
+
+    tmpdir = tempfile.mkdtemp(prefix="clipgrab_img_")
+    filepath = Path(tmpdir) / f"instagram_image.{ext}"
+    with open(filepath, "wb") as f:
+        for chunk in resp.iter_content(8192):
+            f.write(chunk)
+
+    @after_this_request
+    def cleanup(response):
+        shutil.rmtree(tmpdir, ignore_errors=True)
+        return response
+
+    return send_file(filepath, as_attachment=True, download_name=filepath.name)
 
 
 @app.route("/api/download", methods=["GET"])
@@ -101,6 +158,9 @@ def download():
 
     if not url or not detect_platform(url):
         return jsonify({"error": "Missing or unsupported link."}), 400
+
+    if mode == "image":
+        return _download_image(url)
 
     tmpdir = tempfile.mkdtemp(prefix="clipgrab_")
     outtmpl = str(Path(tmpdir) / "%(title).80s.%(ext)s")
